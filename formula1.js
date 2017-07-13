@@ -5005,6 +5005,7 @@ SocialCalc.Formula.FunctionList["IRR"] = [SocialCalc.Formula.IRRFunction, -1, "i
 # PANEL(indices_or_csv, panel1_range [, panel2_range , ...])  
 # SPLASH(splash_panel_range)  // shows splash screen (range) - shows while loading dependant sheets from server  
 # STYLE(css)  
+# URLPARAMETER(parameter_name)  
 #
 */
 
@@ -5058,6 +5059,7 @@ SocialCalc.Formula.IoFunctions = function(fname, operand, foperand, sheet, coord
         ,PANEL:[15, -12] // # PANEL(indices_or_csv, panel1_range [, panel2_range , ...])  
         ,SPLASH:[12]  // SPLASH(splash_panel_range)  // shows splash screen (range)
         ,STYLE:[6] // # STYLE(css)  
+        ,URLPARAMETER:[2] // # URLPARAMETER(parameter_name)
    };
    
    var i, parameter, offset, len, start, count;
@@ -5242,6 +5244,20 @@ SocialCalc.Formula.IoFunctions = function(fname, operand, foperand, sheet, coord
          result = result[result.length-1]; 
          resulttype = "t";
          break;
+      case "URLPARAMETER": // # URLPARAMETER(parameter_name)
+        if(SocialCalc.requestParams) {
+          result = SocialCalc.requestParams[operand_value[1]]; 
+        } else result = "";
+        if(result) {
+          if(isNaN(parseFloat(result))) {
+            resulttype = "t";                      
+          } else {
+            resulttype = "n";                      
+          }
+        } else {
+          resulttype = "e#VALUE! (null parameter)";
+        }
+         break;
       case "PANEL":
       case "SPLASH":
         
@@ -5389,6 +5405,8 @@ SocialCalc.Formula.FunctionList["PANEL"] = [SocialCalc.Formula.IoFunctions, -1, 
 SocialCalc.Formula.FunctionList["SPLASH"] = [SocialCalc.Formula.IoFunctions, -1, "splash_panel_range", "", "gui", ""];
 
 SocialCalc.Formula.FunctionList["STYLE"] = [SocialCalc.Formula.IoFunctions, -1, "css", "", "gui", ""];
+
+SocialCalc.Formula.FunctionList["URLPARAMETER"] = [SocialCalc.Formula.IoFunctions, 1, "parameter_name", "", "action", ""];
 
 // on enter input box refresh the auto complete list
 SocialCalc.TriggerIoAction.AddAutocomplete = function(triggerCellId) {

@@ -167,7 +167,7 @@ SocialCalc.SpreadsheetViewer = function(idPrefix) {
    this.editor.StatusCallback.statusline =
       {func: SocialCalc.SpreadsheetViewerStatuslineCallback,
        params: {}};
-   this.hasStatusLine = true; // default
+   this.hasStatusLine = (SocialCalc._app) ? false : true; // default
 //   this.statuslineHTML = '<table cellspacing="0" cellpadding="0"><tr><td width="100%" style="overflow:hidden;">{status}</td><td><a href="">Will&nbsp;be&nbsp;link</a></td></tr></table>';
    this.statuslineHTML = '<table cellspacing="0" cellpadding="0"><tr><td width="100%" style="overflow:hidden;">{status}</td><td>&nbsp;</td></tr></table>';
    this.statuslineFull = true;

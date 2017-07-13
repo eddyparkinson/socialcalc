@@ -544,12 +544,12 @@ SocialCalc.CreateTableEditor = function(editor, width, height) {
 
    td = document.createElement("td"); // logo display: Required by CPAL License for this code!
    if (SocialCalc._app) { // in app right align Required CPAL License logo
-     td.style.background="url("+editor.imageprefix+"logo.gif) no-repeat right center";
+     // td.style.background="url("+editor.imageprefix+"logo.gif) no-repeat right center";
    } else {
      td.style.background="url("+editor.imageprefix+"logo.gif) no-repeat center center";
    }
    td.innerHTML = "<div style='cursor:pointer;font-size:1px;'><img src='"+editor.imageprefix+"1x1.gif' border='0' width='18' height='18'></div>";
-   tr.appendChild(td);
+   // tr.appendChild(td); // remove logo on shopify - unable to load image because non static image locations
    editor.logo = td;
    AssignID(editor, editor.logo, "logo");
    SocialCalc.TooltipRegister(td.firstChild.firstChild, "SocialCalc", null, editor.toplevel);
@@ -613,8 +613,8 @@ SocialCalc.ResizeTableEditor = function(editor, width, height) {
    editor.width = width;
    editor.height = height;
 
-   editor.toplevel.style.width = width+"px";
-   editor.toplevel.style.height = height+"px";
+   editor.toplevel.style.width =(SocialCalc._app) ? "auto": width+"px";
+   editor.toplevel.style.height =(SocialCalc._app) ? "auto": height+"px";
 
    if (SocialCalc._app) {
      editor.tablewidth = Math.max(0, width ); // no v scroll bar with app
@@ -622,8 +622,8 @@ SocialCalc.ResizeTableEditor = function(editor, width, height) {
      editor.tablewidth = Math.max(0, width - scc.defaultTableControlThickness);     
    }
    editor.tableheight = Math.max(0, height - scc.defaultTableControlThickness);
-   editor.griddiv.style.width=editor.tablewidth+"px";
-   editor.griddiv.style.height=editor.tableheight+"px";
+   editor.griddiv.style.width=(SocialCalc._app) ? "auto":editor.tablewidth+"px";
+   editor.griddiv.style.height=(SocialCalc._app) ? "auto": editor.tableheight+"px";
 
    editor.verticaltablecontrol.main.style.height = editor.tableheight + "px";
    editor.horizontaltablecontrol.main.style.width = editor.tablewidth + "px";

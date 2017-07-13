@@ -7923,12 +7923,12 @@ SocialCalc.CreateTableEditor = function(editor, width, height) {
 
    td = document.createElement("td"); // logo display: Required by CPAL License for this code!
    if (SocialCalc._app) { // in app right align Required CPAL License logo
-     td.style.background="url("+editor.imageprefix+"logo.gif) no-repeat right center";
+     // td.style.background="url("+editor.imageprefix+"logo.gif) no-repeat right center";
    } else {
      td.style.background="url("+editor.imageprefix+"logo.gif) no-repeat center center";
    }
    td.innerHTML = "<div style='cursor:pointer;font-size:1px;'><img src='"+editor.imageprefix+"1x1.gif' border='0' width='18' height='18'></div>";
-   tr.appendChild(td);
+   // tr.appendChild(td); // remove logo on shopify - unable to load image because non static image locations
    editor.logo = td;
    AssignID(editor, editor.logo, "logo");
    SocialCalc.TooltipRegister(td.firstChild.firstChild, "SocialCalc", null, editor.toplevel);
@@ -7992,8 +7992,8 @@ SocialCalc.ResizeTableEditor = function(editor, width, height) {
    editor.width = width;
    editor.height = height;
 
-   editor.toplevel.style.width = width+"px";
-   editor.toplevel.style.height = height+"px";
+   editor.toplevel.style.width =(SocialCalc._app) ? "auto": width+"px";
+   editor.toplevel.style.height =(SocialCalc._app) ? "auto": height+"px";
 
    if (SocialCalc._app) {
      editor.tablewidth = Math.max(0, width ); // no v scroll bar with app
@@ -8001,8 +8001,8 @@ SocialCalc.ResizeTableEditor = function(editor, width, height) {
      editor.tablewidth = Math.max(0, width - scc.defaultTableControlThickness);     
    }
    editor.tableheight = Math.max(0, height - scc.defaultTableControlThickness);
-   editor.griddiv.style.width=editor.tablewidth+"px";
-   editor.griddiv.style.height=editor.tableheight+"px";
+   editor.griddiv.style.width=(SocialCalc._app) ? "auto":editor.tablewidth+"px";
+   editor.griddiv.style.height=(SocialCalc._app) ? "auto": editor.tableheight+"px";
 
    editor.verticaltablecontrol.main.style.height = editor.tableheight + "px";
    editor.horizontaltablecontrol.main.style.width = editor.tablewidth + "px";
@@ -20106,6 +20106,7 @@ SocialCalc.Formula.FunctionList["IRR"] = [SocialCalc.Formula.IRRFunction, -1, "i
 # PANEL(indices_or_csv, panel1_range [, panel2_range , ...])  
 # SPLASH(splash_panel_range)  // shows splash screen (range) - shows while loading dependant sheets from server  
 # STYLE(css)  
+# URLPARAMETER(parameter_name)  
 #
 */
 
@@ -20159,6 +20160,7 @@ SocialCalc.Formula.IoFunctions = function(fname, operand, foperand, sheet, coord
         ,PANEL:[15, -12] // # PANEL(indices_or_csv, panel1_range [, panel2_range , ...])  
         ,SPLASH:[12]  // SPLASH(splash_panel_range)  // shows splash screen (range)
         ,STYLE:[6] // # STYLE(css)  
+        ,URLPARAMETER:[2] // # URLPARAMETER(parameter_name)
    };
    
    var i, parameter, offset, len, start, count;
@@ -20343,6 +20345,20 @@ SocialCalc.Formula.IoFunctions = function(fname, operand, foperand, sheet, coord
          result = result[result.length-1]; 
          resulttype = "t";
          break;
+      case "URLPARAMETER": // # URLPARAMETER(parameter_name)
+        if(SocialCalc.requestParams) {
+          result = SocialCalc.requestParams[operand_value[1]]; 
+        } else result = "";
+        if(result) {
+          if(isNaN(parseFloat(result))) {
+            resulttype = "t";                      
+          } else {
+            resulttype = "n";                      
+          }
+        } else {
+          resulttype = "e#VALUE! (null parameter)";
+        }
+         break;
       case "PANEL":
       case "SPLASH":
         
@@ -20490,6 +20506,8 @@ SocialCalc.Formula.FunctionList["PANEL"] = [SocialCalc.Formula.IoFunctions, -1, 
 SocialCalc.Formula.FunctionList["SPLASH"] = [SocialCalc.Formula.IoFunctions, -1, "splash_panel_range", "", "gui", ""];
 
 SocialCalc.Formula.FunctionList["STYLE"] = [SocialCalc.Formula.IoFunctions, -1, "css", "", "gui", ""];
+
+SocialCalc.Formula.FunctionList["URLPARAMETER"] = [SocialCalc.Formula.IoFunctions, 1, "parameter_name", "", "action", ""];
 
 // on enter input box refresh the auto complete list
 SocialCalc.TriggerIoAction.AddAutocomplete = function(triggerCellId) {
@@ -27309,7 +27327,7 @@ SocialCalc.SpreadsheetViewer = function(idPrefix) {
    this.editor.StatusCallback.statusline =
       {func: SocialCalc.SpreadsheetViewerStatuslineCallback,
        params: {}};
-   this.hasStatusLine = true; // default
+   this.hasStatusLine = (SocialCalc._app) ? false : true; // default
 //   this.statuslineHTML = '<table cellspacing="0" cellpadding="0"><tr><td width="100%" style="overflow:hidden;">{status}</td><td><a href="">Will&nbsp;be&nbsp;link</a></td></tr></table>';
    this.statuslineHTML = '<table cellspacing="0" cellpadding="0"><tr><td width="100%" style="overflow:hidden;">{status}</td><td>&nbsp;</td></tr></table>';
    this.statuslineFull = true;
