@@ -6384,6 +6384,7 @@ SocialCalc.ProcessMouseWheel = function(e) {
    var event = e || window.event;
    var delta;
 
+   if (SocialCalc._app) return; // // ignore in app - no window scroll   
    if (SocialCalc.Keyboard.passThru) return; // ignore
 
    var mousewheelinfo = SocialCalc.MouseWheelInfo;

@@ -4605,7 +4605,7 @@ SocialCalc.RecalcSheet = function(sheet) {
 
    var coord, err, recalcdata;
    var scri = SocialCalc.RecalcInfo;
-
+   
    if (scri.currentState != scri.state.idle) {
       scri.queue.push(sheet);
       return;
@@ -4617,8 +4617,15 @@ SocialCalc.RecalcSheet = function(sheet) {
    SocialCalc.RecalcClearTimeout();
 
    scri.sheet = sheet; // set values needed by background recalc
-   scri.currentState = scri.state.start_calc;
-
+    
+   // if app mode - don't re-create calclist -  ie. dont use RecalcCheckCell after sheet has calculated once   
+   if(sheet.recalcdata && SocialCalc._app) {
+     scri.currentState = scri.state.calc;
+     sheet.recalcdata.nextcalc = sheet.recalcdata.firstcalc; // start at the beginning of the recalc chain 
+   } else {
+     scri.currentState = scri.state.start_calc;
+   }
+   
    scri.starttime = new Date();
 
    if (sheet.statuscallback) {
@@ -4829,7 +4836,8 @@ SocialCalc.RecalcTimerRoutine = function() {
    recalcdata.inrecalc = false;
 
    sheet.reRenderCellList = sheet.recalcdata.celllist; // GUI widgets need focus - if app then only re-render non-widget cells
-   delete sheet.recalcdata; // save memory and clear out for name lookup formula evaluation
+   // if app mode - don't re-create calclist -  ie. dont use RecalcCheckCell after sheet has calculated once
+   if(!SocialCalc._app) delete sheet.recalcdata; // save memory and clear out for name lookup formula evaluation
 
    delete sheet.attribs.needsrecalc; // remember recalc done
 
@@ -6631,6 +6639,10 @@ SocialCalc.FormatValueForDisplay = function(sheetobj, value, cr, linkstyle) {
          if(parameters.css) { // add style(css) formula css value, if any - e.g. =textbox("")+style("margin: 8px 0;")
            // * RegEx Unit Test **  https://regex101.com/r/oV7wU5/2
            cell_html = cell_html.replace(/^(<\w+)(\W)/, "$1 style='"+parameters.css+ "'$2");
+         }
+         if(parameters.attribute) { // add style(css) formula css value, if any - e.g. =textbox("")+style("margin: 8px 0;")
+           // * RegEx Unit Test **  https://regex101.com/r/oV7wU5/2
+           cell_html = cell_html.replace(/^(<\w+)(\W)/, "$1 "+parameters.attribute+ "$2");
          }
 
        }
@@ -13763,6 +13775,7 @@ SocialCalc.ProcessMouseWheel = function(e) {
    var event = e || window.event;
    var delta;
 
+   if (SocialCalc._app) return; // // ignore in app - no window scroll   
    if (SocialCalc.Keyboard.passThru) return; // ignore
 
    var mousewheelinfo = SocialCalc.MouseWheelInfo;
@@ -20106,6 +20119,7 @@ SocialCalc.Formula.FunctionList["IRR"] = [SocialCalc.Formula.IRRFunction, -1, "i
 # PANEL(indices_or_csv, panel1_range [, panel2_range , ...])  
 # SPLASH(splash_panel_range)  // shows splash screen (range) - shows while loading dependant sheets from server  
 # STYLE(css)  
+# HTMLATTRIBUTE(html_attribute) // e.g. attribute='value'
 # URLPARAMETER(parameter_name)  
 #
 */
@@ -20160,6 +20174,7 @@ SocialCalc.Formula.IoFunctions = function(fname, operand, foperand, sheet, coord
         ,PANEL:[15, -12] // # PANEL(indices_or_csv, panel1_range [, panel2_range , ...])  
         ,SPLASH:[12]  // SPLASH(splash_panel_range)  // shows splash screen (range)
         ,STYLE:[6] // # STYLE(css)  
+        ,HTMLATTRIBUTE:[6]
         ,URLPARAMETER:[2] // # URLPARAMETER(parameter_name)
    };
    
@@ -20265,17 +20280,29 @@ SocialCalc.Formula.IoFunctions = function(fname, operand, foperand, sheet, coord
    
    switch (fname) {
      case "STYLE":  
+     case "HTMLATTRIBUTE":       
+       
        var parameters = sheet.ioParameterList[coord];
        if(parameters) {
-         var css = SocialCalc.Formula.getStandardizedList(sheet, {value: operand_value[1], type: operand_type[1]});
-         if(css.length > 0 ) {
-           parameters.css = css[0];
-           parameters.cssParameter = (operand_type[1] == "t") ? '"'+operand_value[1]+'"' : operand_value[1];
+         var attribute = SocialCalc.Formula.getStandardizedList(sheet, {value: operand_value[1], type: operand_type[1]});
+         if(attribute.length > 0 ) {
+           attribute = attribute[0];
+           var attributeParameter = (operand_type[1] == "t") ? '"'+operand_value[1]+'"' : operand_value[1];
+           attributeParameter = attributeParameter.replace(/'/g, "''");
+           if(fname == "STYLE") {
+             parameters.css = attribute;
+             parameters.cssParameter = attributeParameter;
+           } else {
+             parameters.attribute = attribute;
+             parameters.attributeParameter = attributeParameter;             
+           }
+           
          }
          result = ""; // ensure return value does not get changed by style - will add this empty string to number or string
          resulttype = "ni"; // important - allows widgets to keep type - use: TEXTBOX("")+STYLE(css)  - must add style to widget 
        }
        break;
+         
      case "SELECT":  // # SELECT(string, range [,size [,multiple]])
          var parameters = sheet.ioParameterList[coord];
          var optionSource = SocialCalc.Formula.getStandardizedList(sheet, parameters[1]);
@@ -20285,8 +20312,10 @@ SocialCalc.Formula.IoFunctions = function(fname, operand, foperand, sheet, coord
          parameters.html[1] = (operand_value[3]) ? ""+operand_value[3] : "1"
          if(optionSource.length > 0 ) {
            var options = "<option>" + optionSource.join("</option><option>") + "</option>";
-           var optionRegExp = new RegExp("<option>"+operand_value[1],'');
-           parameters.html[2] = options.replace(optionRegExp, "<option selected>"+operand_value[1] ); // select default, if any
+           options = options.replace(/>([^<]*)<\/option/g," value='$1'>$1</option");  // https://regex101.com/ test string: <option>Carbon Blue</option><option>Graphite Black</option></select>           
+           //var optionRegExp = new RegExp("<option value='"+operand_value[1],'');
+           //parameters.html[2] = options.replace(optionRegExp, "<option selected='selected' value='"+operand_value[1] ); // select default, if any
+           parameters.html[2] = options.replace("<option value='"+operand_value[1], "<option selected='selected' value='"+operand_value[1] ); // select default, if any
          }
          result = operand_value[1];
          resulttype = "ti"+fname;
@@ -20350,7 +20379,7 @@ SocialCalc.Formula.IoFunctions = function(fname, operand, foperand, sheet, coord
           result = SocialCalc.requestParams[operand_value[1]]; 
         } else result = "";
         if(result) {
-          if(isNaN(parseFloat(result))) {
+          if(isNaN(parseFloat(result))  || !isFinite(result)) {
             resulttype = "t";                      
           } else {
             resulttype = "n";                      
@@ -20505,7 +20534,8 @@ SocialCalc.Formula.FunctionList["COMMANDIF"] = [SocialCalc.Formula.IoFunctions, 
 SocialCalc.Formula.FunctionList["PANEL"] = [SocialCalc.Formula.IoFunctions, -1, "showindices_range_or_csv, panel1_range [, panel2_range , ...]", "", "gui", ""];
 SocialCalc.Formula.FunctionList["SPLASH"] = [SocialCalc.Formula.IoFunctions, -1, "splash_panel_range", "", "gui", ""];
 
-SocialCalc.Formula.FunctionList["STYLE"] = [SocialCalc.Formula.IoFunctions, -1, "css", "", "gui", ""];
+SocialCalc.Formula.FunctionList["STYLE"] = [SocialCalc.Formula.IoFunctions, 1, "css", "", "gui", ""];
+SocialCalc.Formula.FunctionList["HTMLATTRIBUTE"] = [SocialCalc.Formula.IoFunctions, 1, "Attribute=Value", "", "gui", ""];
 
 SocialCalc.Formula.FunctionList["URLPARAMETER"] = [SocialCalc.Formula.IoFunctions, 1, "parameter_name", "", "action", ""];
 
@@ -21070,6 +21100,11 @@ SocialCalc.TriggerIoAction.updateInputWidgetFormula = function(function_name, wi
  if(parameters.cssParameter) {
    sheetCommand += "+style("+  parameters.cssParameter+ ")"; 
  }
+ // add html attribute if attribute has been added
+ if(parameters.attributeParameter) {
+   sheetCommand += "+htmlattribute("+  parameters.attributeParameter+ ")"; 
+ }
+
  //SocialCalc.CmdGotFocus(cell_widget);
 
  spreadsheet.editor.EditorScheduleSheetCommands(sheetCommand,  true, false);

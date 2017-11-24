@@ -3703,7 +3703,7 @@ SocialCalc.RecalcSheet = function(sheet) {
 
    var coord, err, recalcdata;
    var scri = SocialCalc.RecalcInfo;
-
+   
    if (scri.currentState != scri.state.idle) {
       scri.queue.push(sheet);
       return;
@@ -3715,8 +3715,15 @@ SocialCalc.RecalcSheet = function(sheet) {
    SocialCalc.RecalcClearTimeout();
 
    scri.sheet = sheet; // set values needed by background recalc
-   scri.currentState = scri.state.start_calc;
-
+    
+   // if app mode - don't re-create calclist -  ie. dont use RecalcCheckCell after sheet has calculated once   
+   if(sheet.recalcdata && SocialCalc._app) {
+     scri.currentState = scri.state.calc;
+     sheet.recalcdata.nextcalc = sheet.recalcdata.firstcalc; // start at the beginning of the recalc chain 
+   } else {
+     scri.currentState = scri.state.start_calc;
+   }
+   
    scri.starttime = new Date();
 
    if (sheet.statuscallback) {
@@ -3927,7 +3934,8 @@ SocialCalc.RecalcTimerRoutine = function() {
    recalcdata.inrecalc = false;
 
    sheet.reRenderCellList = sheet.recalcdata.celllist; // GUI widgets need focus - if app then only re-render non-widget cells
-   delete sheet.recalcdata; // save memory and clear out for name lookup formula evaluation
+   // if app mode - don't re-create calclist -  ie. dont use RecalcCheckCell after sheet has calculated once
+   if(!SocialCalc._app) delete sheet.recalcdata; // save memory and clear out for name lookup formula evaluation
 
    delete sheet.attribs.needsrecalc; // remember recalc done
 
@@ -5729,6 +5737,10 @@ SocialCalc.FormatValueForDisplay = function(sheetobj, value, cr, linkstyle) {
          if(parameters.css) { // add style(css) formula css value, if any - e.g. =textbox("")+style("margin: 8px 0;")
            // * RegEx Unit Test **  https://regex101.com/r/oV7wU5/2
            cell_html = cell_html.replace(/^(<\w+)(\W)/, "$1 style='"+parameters.css+ "'$2");
+         }
+         if(parameters.attribute) { // add style(css) formula css value, if any - e.g. =textbox("")+style("margin: 8px 0;")
+           // * RegEx Unit Test **  https://regex101.com/r/oV7wU5/2
+           cell_html = cell_html.replace(/^(<\w+)(\W)/, "$1 "+parameters.attribute+ "$2");
          }
 
        }
